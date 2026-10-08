@@ -12,6 +12,7 @@
 #include <ArduinoLog.h>
 #include <WifiCaptive.h>
 #include <pins.h>
+#include <e1003_sleep.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <display.h>
@@ -2304,13 +2305,20 @@ void goToSleep(void)
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
 #ifdef BOARD_TRMNL_X
   esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_INTERRUPT, 0);
+#elif defined(BOARD_SEEED_RETERMINAL_E1003)
+  e1003_enable_button_wakeup(pDevice->interrupt_pin); // ext1; see include/e1003_sleep.h
 #else
   esp_sleep_enable_ext0_wakeup((gpio_num_t)pDevice->interrupt_pin, 0);
 #endif
 #else
 #error "Unsupported ESP32 target for GPIO wakeup configuration"
 #endif
-#if defined( BOARD_XTEINK_X4 ) || defined ( BOARD_XTEINK_X3 ) 
+#if defined(BOARD_SEEED_RETERMINAL_E1003)
+  // Latch the IT8951 rails, SD/mic/buzzer enables and the GT911 reset LOW
+  // through deep sleep (trmnl-firmware#572). Must come after display_sleep().
+  e1003_park_pins_for_sleep();
+#endif
+#if defined( BOARD_XTEINK_X4 ) || defined ( BOARD_XTEINK_X3 )
 // The Xteink X4 has a high current draw in deep sleep (3-4mA), so allow the user to select
 // if they want to completely shut down the power and only update with a physical button press
 // or have short battery life (5-7 days) in the normal TRMNL wakeup mode
