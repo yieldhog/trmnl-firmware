@@ -1,31 +1,31 @@
 #ifndef E1003_SLEEP_H
 #define E1003_SLEEP_H
 
-// Seeed reTerminal E1003 deep-sleep power fixes (usetrmnl/trmnl-firmware#572).
+// Deep-sleep power fix for the Seeed reTerminal E1003 (trmnl-firmware#572).
 //
-// Problem: the E1003 draws ~5 mA in deep sleep because several peripheral
-// enables are never driven, and the ones that are (IT8951 rails) are only
-// driven, not held, so the pads float once the chip sleeps. The GT911 touch
-// controller in particular has its reset line (GPIO48) pulled HIGH externally,
-// so it free-runs in scan mode all night.
+// The problem: in deep sleep the E1003 drew about 5 mA. A pin set with
+// digitalWrite() is released the moment the ESP32-S3 sleeps, so the peripheral
+// enable lines float. The worst offender is the GT911 touch controller's reset
+// line, which has an external pull-up: once released it goes HIGH and the
+// controller scans for touches all night, on a board where TRMNL never uses
+// touch.
 //
-// Fix (measured on this exact board by ar0v3r/reTerminal-E1003-ESPHome, and
-// independently applied by dmellok/tesserae-device-firmware v1.40/v1.42):
-//   * drive the enables LOW, with internal pulls OFF, and latch them with
-//     gpio_hold_en() + gpio_deep_sleep_hold_en() so they survive deep sleep
-//   * release the latches first thing on boot, BEFORE FastEPD power-cycles
-//     the IT8951 rails (a held pad ignores gpio_set_level)
+// The fix: before sleeping, drive the enable lines LOW and latch them with the
+// ESP32's GPIO hold feature so they stay LOW through deep sleep. On boot,
+// release the latches before the display driver powers the panel back up.
 //
-// Everything here is a no-op unless BOARD_SEEED_RETERMINAL_E1003 is defined.
+// The same approach was measured on this board by ar0v3r/reTerminal-E1003-ESPHome
+// (sleep current dropped below 1 mA) and applied by dmellok/tesserae-device-firmware.
+//
+// Only compiled for BOARD_SEEED_RETERMINAL_E1003; every call site is guarded.
 
-// Call as early as possible on boot (before display_init / bl_init).
+// Call first thing in setup(), before display_init().
 void e1003_release_sleep_holds(void);
 
-// Call immediately before esp_deep_sleep_start(), after display_sleep().
+// Call in goToSleep(), after display_sleep() and just before esp_deep_sleep_start().
 void e1003_park_pins_for_sleep(void);
 
-// Arm the button wake source for the E1003. Replaces the generic ext0 call in
-// goToSleep(). Returns true if it armed something.
-bool e1003_enable_button_wakeup(int interrupt_pin);
+// Arm the button wake. Uses ext1; build with -D E1003_SLEEP_USE_EXT0 for stock ext0.
+void e1003_enable_button_wakeup(int interrupt_pin);
 
 #endif // E1003_SLEEP_H

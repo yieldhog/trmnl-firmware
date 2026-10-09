@@ -12,7 +12,9 @@
 #include <ArduinoLog.h>
 #include <WifiCaptive.h>
 #include <pins.h>
+#ifdef BOARD_SEEED_RETERMINAL_E1003
 #include <e1003_sleep.h>
+#endif
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <display.h>
@@ -2306,7 +2308,7 @@ void goToSleep(void)
 #ifdef BOARD_TRMNL_X
   esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_INTERRUPT, 0);
 #elif defined(BOARD_SEEED_RETERMINAL_E1003)
-  e1003_enable_button_wakeup(pDevice->interrupt_pin); // ext1; see include/e1003_sleep.h
+  e1003_enable_button_wakeup(pDevice->interrupt_pin); // see include/e1003_sleep.h
 #else
   esp_sleep_enable_ext0_wakeup((gpio_num_t)pDevice->interrupt_pin, 0);
 #endif
@@ -2314,8 +2316,8 @@ void goToSleep(void)
 #error "Unsupported ESP32 target for GPIO wakeup configuration"
 #endif
 #if defined(BOARD_SEEED_RETERMINAL_E1003)
-  // Latch the IT8951 rails, SD/mic/buzzer enables and the GT911 reset LOW
-  // through deep sleep (trmnl-firmware#572). Must come after display_sleep().
+  // Hold the E1003 peripheral enables LOW through deep sleep (#572).
+  // Must come after display_sleep(). See include/e1003_sleep.h.
   e1003_park_pins_for_sleep();
 #endif
 #if defined( BOARD_XTEINK_X4 ) || defined ( BOARD_XTEINK_X3 )
